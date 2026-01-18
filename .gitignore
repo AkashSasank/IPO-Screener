@@ -1,0 +1,9 @@
+data/dataset/
+*.pyc
+__pycache__/
+.env
+.DS_Store
+.vscode/
+.idea/
+logs/
+.venv

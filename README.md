@@ -1,0 +1,1 @@
+# Web Scraper Tool (Static HTML)
