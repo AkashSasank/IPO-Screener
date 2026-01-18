@@ -12,6 +12,7 @@ class ChittorgarhScraper:
     """
     A scraper class to scrape data from Chittorgarh.
     """
+
     def __init__(self, config: str):
         self.fetcher = ChittorgarhFetcher()
         self.gmp_fetcher = IPOGmpTableFetcher()
@@ -149,13 +150,16 @@ class ChittorgarhScraper:
         company_name: str,
         out_dir: str,
         url_pattern: str = None,
-        url: str = None, # Happens when we need to go to an external page. Eg:investor gain
+        url: str = None,  # Happens when we need to go to an external page. Eg:investor gain
     ):
         """Fetch a page and save it to disk (runs in background thread)."""
-        path = os.path.join(
-            out_dir,
-            company_name.lower().replace(" ", "_"),
-        ) + ".html"
+        path = (
+            os.path.join(
+                out_dir,
+                company_name.lower().replace(" ", "_"),
+            )
+            + ".html"
+        )
         if os.path.exists(path):
             print(f"File {path} already exists, skipping.")
             return
@@ -178,9 +182,7 @@ class ChittorgarhScraper:
 
     def _get_page(self, slug: str, id: int, url_pattern: str):
         """Build URL and fetch the page."""
-        url = url_pattern.format(
-                chittorgarh_slug=slug, id=id, base_url=self.base_url
-            )
+        url = url_pattern.format(chittorgarh_slug=slug, id=id, base_url=self.base_url)
         try:
             print(f"Fetching {url}")
             page = requests.get(url)

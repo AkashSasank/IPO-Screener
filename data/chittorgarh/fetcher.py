@@ -103,7 +103,6 @@ class ChittorgarhFetcher:
         return all_rows, failed_url
 
 
-
 class IPOGmpTableFetcher:
     """
     Loads a page fully (JS + background XHR) and returns the final rendered HTML.

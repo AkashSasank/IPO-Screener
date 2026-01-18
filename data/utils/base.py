@@ -1,5 +1,6 @@
-from typing import Any, Optional, Protocol, Union
 from abc import ABC, abstractmethod
+from typing import Any, Optional, Protocol, Union
+
 
 class Extractor(ABC):
     @abstractmethod
