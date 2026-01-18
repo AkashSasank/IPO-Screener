@@ -5,7 +5,7 @@
     "sme": {
       "api_url": "{base_url}/main-board/index",
       "page_url": "{base_url}/list-of-sme-ipos",
-      "n_pages": 1,
+      "n_pages": 143,
       "params": {
         "draw": "1",
         "columns[0][data]": "company_link",
@@ -68,7 +68,7 @@
     "mainboard": {
         "api_url": "{base_url}/main-board/index",
         "page_url": "{base_url}/list-of-mainboard-ipos",
-        "n_pages": 1,
+        "n_pages": 75,
         "params": {
           "draw": 1,
           "columns[0][data]": "company_link",
@@ -123,7 +123,7 @@
       "fields": ["id", "company_name","chittorgarh_slug", "investor_gain"]
       }
   },
-  "sections": ["gmp"],
+  "sections": ["ipo_information", "financials", "subscription", "peers", "performance_report", "review", "gmp"],
   "sectionsAPI": {
     "ipo_information": {
       "key": null,
