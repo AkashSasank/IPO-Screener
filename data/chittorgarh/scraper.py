@@ -20,7 +20,9 @@ class ChittorgarhScraper:
         self.base_url = self.config["base_url"]
         self.base_data_files = []
 
-    def scrape(self, outputs_base_dir: str = "../dataset/chittorgarh/raw"):
+    def scrape(self, outputs_base_dir: str = None):
+        if not outputs_base_dir:
+            outputs_base_dir = os.path.join(self.config["dataset_root"], "raw")
         print("Scraping Chittorgarh...")
         print("Getting base data...")
         self._get_base_data(os.path.join(outputs_base_dir, "csv"))
@@ -166,7 +168,7 @@ class ChittorgarhScraper:
         # TODO: Make this dynamic. Right now only GMP pages are external
         if url:
             print(f"Fetching URL: {url}")
-            page = self.gmp_fetcher.extract_gmp(url)
+            page = self.gmp_fetcher.fetch_gmp_table(url)
         else:
             page = self._get_page(slug=slug, id=id, url_pattern=url_pattern)
         if page:
@@ -214,8 +216,3 @@ class ChittorgarhScraper:
         csv_path = os.path.join(outputs_dir, f"{name}.csv")
         df.to_csv(csv_path, index=False)
         return csv_path
-
-
-if __name__ == "__main__":
-    scraper = ChittorgarhScraper(config="./config.json")
-    scraper.scrape()

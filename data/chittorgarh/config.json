@@ -1,5 +1,6 @@
 {
   "base_url": "https://www.ipoplatform.com",
+  "dataset_root": "../dataset/chittorgarh/",
   "segments": ["mainboard", "sme"],
   "segmentsAPI": {
     "sme": {
