@@ -4,8 +4,10 @@ from typing import Dict, List
 
 import pandas as pd
 import requests
-from chittorgarh.fetcher import ChittorgarhFetcher, IPOGmpTableFetcher
-from utils.config import parse_config
+
+from data.chittorgarh.utils.fetcher import (ChittorgarhFetcher,
+                                            IPOGmpTableFetcher, SubscriptionFetcher)
+from data.utils.config import parse_config
 
 
 class ChittorgarhScraper:
@@ -16,6 +18,7 @@ class ChittorgarhScraper:
     def __init__(self, config: str):
         self.fetcher = ChittorgarhFetcher()
         self.gmp_fetcher = IPOGmpTableFetcher()
+        self.subscription_fetcher = SubscriptionFetcher()
         self.config = parse_config(config)
         self.base_url = self.config["base_url"]
         self.base_data_files = []
@@ -168,7 +171,10 @@ class ChittorgarhScraper:
         # TODO: Make this dynamic. Right now only GMP pages are external
         if url:
             print(f"Fetching URL: {url}")
-            page = self.gmp_fetcher.fetch_gmp_table(url)
+            if "/gmp/" in url:
+                page = self.gmp_fetcher.fetch_gmp_table(url)
+            if "/subscription/" in url:
+                page = self.subscription_fetcher.fetch(url)
         else:
             page = self._get_page(slug=slug, id=id, url_pattern=url_pattern)
         if page:
