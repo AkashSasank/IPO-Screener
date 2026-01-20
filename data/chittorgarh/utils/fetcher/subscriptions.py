@@ -1,7 +1,7 @@
 import re
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
@@ -14,7 +14,7 @@ class FetchResult:
     status: Optional[int]
     html: str
     title: str
-    captured_json: List[Tuple[str, dict]]  # (url, json)
+    captured_json: List[Tuple[str, Any]]
 
 
 class SubscriptionFetcher:
@@ -49,28 +49,44 @@ class SubscriptionFetcher:
         if self.debug:
             print("[PW-FETCHER]", *args)
 
+    @staticmethod
+    def _looks_like_json(text: str) -> bool:
+        t = text.lstrip()
+        return t.startswith("{") or t.startswith("[")
+
     def fetch(
         self,
         url: str,
         wait_selector: Optional[str] = None,
         wait_text_regex: Optional[str] = None,
-        extra_wait_ms: int = 1_000,
+        extra_wait_ms: int = 500,
         retries: int = 2,
+        # NEW: make “data loaded” explicit
+        wait_for_table: bool = True,
+        table_min_rows: int = 1,
+        placeholder_token: Optional[str] = "[●]",
+        subscription_panel_selector: str = "div.panel-box",
+        table_selector: str = "div.panel-box table",
+        auto_scroll: bool = True,
     ) -> FetchResult:
         """
-        Strategy:
-        1) goto(url) with domcontentloaded
-        2) wait for network to go idle-ish
-        3) optional: wait for selector or text
-        4) small extra wait (for late hydration)
-        5) return page.content()
+        Robust strategy:
+        1) goto(url)
+        2) wait for DOM + JS settle
+        3) wait for *data-ready* signal (table rows OR placeholder gone)
+        4) return page.content()
         """
+
         last_err: Optional[Exception] = None
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=self.headless, slow_mo=self.slow_mo_ms)
+            browser = p.chromium.launch(
+                headless=self.headless,
+                slow_mo=self.slow_mo_ms,
+                # If you face bot-detection, these flags often help (not a silver bullet):
+                args=["--disable-blink-features=AutomationControlled"],
+            )
 
-            # NOTE: if you need a persistent session/cookies, switch to launch_persistent_context
             context_kwargs = dict(
                 locale=self.locale,
                 timezone_id=self.timezone_id,
@@ -83,7 +99,7 @@ class SubscriptionFetcher:
             page = context.new_page()
             page.set_default_timeout(self.timeout_ms)
 
-            # Optional: block images/fonts to speed up. For HTML extraction, you usually don’t need them.
+            # Speed: block non-essential assets (keep scripts + xhr!)
             if self.block_resources:
 
                 def route_handler(route, request):
@@ -94,45 +110,123 @@ class SubscriptionFetcher:
 
                 page.route("**/*", route_handler)
 
-            captured_json: List[Tuple[str, dict]] = []
+            captured_json: List[Tuple[str, Any]] = []
 
-            # Optional: capture JSON responses from XHR/fetch
-            if self.capture_json:
+            # Log XHR/fetch errors (very useful for “table is empty” debugging)
+            def on_request_failed(req):
+                if req.resource_type in ("xhr", "fetch"):
+                    self._log("XHR FAILED:", req.method, req.url, "->", req.failure)
 
-                def on_response(resp):
-                    try:
-                        ct = (resp.headers.get("content-type") or "").lower()
-                        if "application/json" in ct:
-                            data = resp.json()
-                            captured_json.append((resp.url, data))
-                            self._log("captured json:", resp.url)
-                    except Exception:
-                        # ignore parse/cors/stream errors
-                        pass
+            page.on("requestfailed", on_request_failed)
 
-                page.on("response", on_response)
+            def on_response(resp):
+                # Capture JSON-ish payloads from XHR/fetch
+                if not self.capture_json:
+                    return
+                try:
+                    if resp.request.resource_type not in ("xhr", "fetch"):
+                        return
+
+                    ct = (resp.headers.get("content-type") or "").lower()
+
+                    # Some sites send JSON as text/plain or even text/html
+                    if "application/json" in ct:
+                        data = resp.json()
+                        captured_json.append((resp.url, data))
+                        self._log("captured json:", resp.status, resp.url)
+                        return
+
+                    # Fallback: attempt to parse “JSON-looking” text
+                    txt = resp.text()
+                    if self._looks_like_json(txt):
+                        try:
+                            data = resp.json()  # playwright will parse if possible
+                        except Exception:
+                            # last resort: keep the raw text
+                            data = txt
+                        captured_json.append((resp.url, data))
+                        self._log("captured json-ish:", resp.status, resp.url)
+                except Exception:
+                    pass
+
+            page.on("response", on_response)
 
             for attempt in range(retries + 1):
                 try:
                     self._log(f"goto attempt {attempt+1}/{retries+1}:", url)
+
                     resp = page.goto(url, wait_until="domcontentloaded")
 
-                    # Some sites do lots of background calls; "networkidle" can be too strict.
-                    # We'll do a soft settle: wait a bit and also try networkidle with a short timeout.
+                    # Let JS settle (don’t rely solely on networkidle)
                     try:
-                        page.wait_for_load_state("networkidle", timeout=10_000)
+                        page.wait_for_load_state("networkidle", timeout=12_000)
                     except PlaywrightTimeoutError:
                         self._log("networkidle timeout (soft-ignored)")
 
+                    # Optional: user-provided waits
                     if wait_selector:
                         self._log("waiting selector:", wait_selector)
                         page.wait_for_selector(wait_selector, state="visible")
+
                     if wait_text_regex:
                         self._log("waiting text regex:", wait_text_regex)
-                        rx = re.compile(wait_text_regex, re.IGNORECASE)
                         page.wait_for_function(
                             """(pattern) => new RegExp(pattern, 'i').test(document.body.innerText)""",
                             wait_text_regex,
+                        )
+
+                    # Auto-scroll helps if the table loads on viewport / intersection observer
+                    if auto_scroll:
+                        page.evaluate(
+                            """() => new Promise(resolve => {
+                                let y = 0;
+                                const step = 600;
+                                const max = Math.max(document.body.scrollHeight, 3000);
+                                const timer = setInterval(() => {
+                                    window.scrollTo(0, y);
+                                    y += step;
+                                    if (y >= max) {
+                                        clearInterval(timer);
+                                        window.scrollTo(0, 0);
+                                        resolve(true);
+                                    }
+                                }, 120);
+                            })"""
+                        )
+
+                    # NEW: Wait until the table is truly populated / placeholders replaced
+                    if wait_for_table:
+                        self._log("waiting for table data to appear...")
+                        page.wait_for_function(
+                            """({tableSel, panelSel, minRows, token}) => {
+                                const tbl = document.querySelector(tableSel);
+                                const panel = document.querySelector(panelSel);
+
+                                // Condition A: tbody rows exist and have non-empty text
+                                if (tbl) {
+                                    const rows = tbl.querySelectorAll("tbody tr");
+                                    if (rows && rows.length >= minRows) {
+                                        // ensure not just empty <td>
+                                        const hasText = Array.from(rows).some(r => (r.innerText || "").trim().length > 0);
+                                        if (hasText) return true;
+                                    }
+                                }
+
+                                // Condition B: placeholder token removed from the subscription panel
+                                if (token && panel) {
+                                    const t = (panel.innerText || "");
+                                    if (t && !t.includes(token)) return true;
+                                }
+
+                                return false;
+                            }""",
+                            {
+                                "tableSel": table_selector,
+                                "panelSel": subscription_panel_selector,
+                                "minRows": table_min_rows,
+                                "token": placeholder_token,
+                            },
+                            timeout=self.timeout_ms,
                         )
 
                     if extra_wait_ms:
@@ -155,10 +249,16 @@ class SubscriptionFetcher:
                 except Exception as e:
                     last_err = e
                     self._log("error:", repr(e))
-                    # small backoff
-                    time.sleep(1.0 + attempt * 0.75)
 
-            # If we exhausted retries
+                    # Backoff increases odds of surviving rate-limit / transient failures
+                    time.sleep(2.0 + attempt * 1.25)
+
+                    # On retry, a clean reload can help
+                    try:
+                        page.goto("about:blank")
+                    except Exception:
+                        pass
+
             context.close()
             browser.close()
             raise RuntimeError(

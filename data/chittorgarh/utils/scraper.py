@@ -5,8 +5,11 @@ from typing import Dict, List
 import pandas as pd
 import requests
 
-from data.chittorgarh.utils.fetcher import (ChittorgarhFetcher,
-                                            IPOGmpTableFetcher, SubscriptionFetcher)
+from data.chittorgarh.utils.fetcher import (
+    ChittorgarhFetcher,
+    IPOGmpTableFetcher,
+    SubscriptionFetcher,
+)
 from data.utils.config import parse_config
 
 
@@ -174,7 +177,14 @@ class ChittorgarhScraper:
             if "/gmp/" in url:
                 page = self.gmp_fetcher.fetch_gmp_table(url)
             if "/subscription/" in url:
-                page = self.subscription_fetcher.fetch(url)
+                page = self.subscription_fetcher.fetch(
+                    url,
+                    wait_for_table=True,
+                    table_min_rows=1,
+                    placeholder_token="[●]",
+                    subscription_panel_selector="div.panel-box",
+                    table_selector="div.panel-box table",
+                )
         else:
             page = self._get_page(slug=slug, id=id, url_pattern=url_pattern)
         if page:
