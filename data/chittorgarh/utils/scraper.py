@@ -5,11 +5,9 @@ from typing import Dict, List
 import pandas as pd
 import requests
 
-from data.chittorgarh.utils.fetcher import (
-    ChittorgarhFetcher,
-    IPOGmpTableFetcher,
-    SubscriptionFetcher,
-)
+from data.chittorgarh.utils.fetcher import (ChittorgarhFetcher,
+                                            IPOGmpTableFetcher,
+                                            SubscriptionFetcher)
 from data.utils.config import parse_config
 
 

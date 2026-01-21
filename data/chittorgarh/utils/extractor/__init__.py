@@ -1,8 +1,11 @@
 from data.chittorgarh.utils.extractor.financials import IPOFinancialsExtractor
 from data.chittorgarh.utils.extractor.gmp import IPOGMPTagsExtractor
-from data.chittorgarh.utils.extractor.information import IPOInformationExtractor
-from data.chittorgarh.utils.extractor.performance import IPOPerformanceExtractor
-from data.chittorgarh.utils.extractor.subscription import IPOSubscriptionExtractor
+from data.chittorgarh.utils.extractor.information import \
+    IPOInformationExtractor
+from data.chittorgarh.utils.extractor.performance import \
+    IPOPerformanceExtractor
+from data.chittorgarh.utils.extractor.subscription import \
+    IPOSubscriptionExtractor
 from data.utils.base import Extractor
 
 

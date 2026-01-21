@@ -28,11 +28,9 @@ class Parser:
             return None
         return s
 
-
     def _strip_ordinal_suffix(self, s: str) -> str:
         # "31st March 2015" -> "31 March 2015"
         return self._ORDINAL_SUFFIX_RX.sub(r"\1", s)
-
 
     def parse_indian_money_to_number(self, x: object) -> Optional[float]:
         """
@@ -79,7 +77,6 @@ class Parser:
         # cr/crore -> already in crores
         return val
 
-
     def parse_number(self, x: object) -> Optional[float]:
         """
         Parses generic numbers like:
@@ -97,7 +94,6 @@ class Parser:
             return float(s)
         except ValueError:
             return None
-
 
     def parse_percentage(self, x: object) -> Optional[float]:
         """
@@ -119,7 +115,6 @@ class Parser:
         except ValueError:
             return None
 
-
     def parse_date(self, x: object) -> Optional[str]:
         """
         Parses dates like:
@@ -136,11 +131,11 @@ class Parser:
 
         # common formats seen in your csvs
         fmts = [
-            "%d %B %Y",     # 31 March 2015
-            "%d %b %Y",     # 31 Mar 2015
-            "%Y-%m-%d",     # 2015-03-31
-            "%d/%m/%Y",     # 31/03/2015
-            "%d-%m-%Y",     # 31-03-2015
+            "%d %B %Y",  # 31 March 2015
+            "%d %b %Y",  # 31 Mar 2015
+            "%Y-%m-%d",  # 2015-03-31
+            "%d/%m/%Y",  # 31/03/2015
+            "%d-%m-%Y",  # 31-03-2015
         ]
         for f in fmts:
             try:
@@ -157,7 +152,6 @@ class Parser:
         except Exception:
             return None
 
-
     def normalize_company_slug(self, x: object) -> Optional[str]:
         """
         Keeps your existing slug style; also normalizes spaces/hyphens if any.
@@ -171,13 +165,11 @@ class Parser:
         s = re.sub(r"_+", "_", s).strip("_")
         return s or None
 
-
     def parse_text(self, x: object) -> Optional[str]:
         s = self._normalize_missing(x)
         if s is None:
             return None
         return s.strip()
-
 
     def parse_listlike_text(self, x: object) -> Optional[str]:
         """
@@ -192,6 +184,7 @@ class Parser:
 
 
 # --------------------------- Cleaner strategies ---------------------------
+
 
 @dataclass(frozen=True)
 class MapCleaner:
@@ -231,6 +224,7 @@ class ListTextCleaner(MapCleaner):
 
 # --------------------------- Strategy factory ---------------------------
 
+
 class CleanerFactory:
     """
     Strategy pattern:
@@ -253,7 +247,6 @@ class CleanerFactory:
         self._by_col: Dict[str, MapCleaner] = {
             # --- common key ---
             "company": self.company,
-
             # --- financials.csv (mostly numeric; amounts/ratios/%/multiples) ---
             "assets": self.num,
             "net_worth": self.num,
@@ -261,52 +254,48 @@ class CleanerFactory:
             "revenue": self.num,
             "ebitda": self.num,
             "pat": self.num,
-            "ebitda_margin": self.num,   # in your file it's 4.86 etc (already % value)
-            "pat_margin": self.num,      # already % value
+            "ebitda_margin": self.num,  # in your file it's 4.86 etc (already % value)
+            "pat_margin": self.num,  # already % value
             "eps": self.num,
-            "roe": self.num,             # already % value
-            "roce": self.num,            # already % value
-            "roa": self.num,             # already % value
+            "roe": self.num,  # already % value
+            "roce": self.num,  # already % value
+            "roa": self.num,  # already % value
             "debt_to_equity": self.num,  # ratio
             "market_capitalisation": self.num,  # already numeric here; in ipo_information it is ₹...Cr
             "enterprise_value": self.num,
-            "ev_ebitda": self.num,       # multiple
-            "pb_multiple": self.num,      # multiple
-            "pe_multiple": self.num,      # multiple
+            "ev_ebitda": self.num,  # multiple
+            "pb_multiple": self.num,  # multiple
+            "pe_multiple": self.num,  # multiple
             "nav": self.num,
-
             # --- gmp.csv (prices/premiums) ---
             "ipo_open_gmp": self.num,
             "ipo_close_gmp": self.num,
             "ipo_allotment_gmp": self.num,
             "ipo_listing_gmp": self.num,
-
             # --- ipo_information.csv (mix of text + money + dates) ---
             "ipo_category": self.text,
             "exchange": self.text,
             "issue_type": self.text,
-            "ipo_size": self.money,                 # "₹ 356.19 Cr."
-            "issue_price": self.money,              # "₹ 115.00"
-            "subscription": self.num,               # "0.77"
-            "pre_issue_promoter_holding": self.num, # sometimes blank
-            "post_issue_promoter_holding": self.num,# sometimes blank
+            "ipo_size": self.money,  # "₹ 356.19 Cr."
+            "issue_price": self.money,  # "₹ 115.00"
+            "subscription": self.num,  # "0.77"
+            "pre_issue_promoter_holding": self.num,  # sometimes blank
+            "post_issue_promoter_holding": self.num,  # sometimes blank
             "dhrp_date": self.date,
             "open_date": self.date,
             "close_date": self.date,
-            "allotment_date": self.date,            # may be [●]
+            "allotment_date": self.date,  # may be [●]
             "listing_date": self.date,
             "object_of_issue": self.listtext,
             # NOTE: market_capitalisation + pe_multiple appear here too, but formatted as money/text sometimes
             # We'll handle with "auto override" below.
-
             # --- performance_report.csv (price + % gains) ---
             "face_value": self.num,
             "listing_price": self.num,
             "listing_gain": self.num,
             "current_market_price": self.num,
-
             # --- subscription.csv (mix: placeholders, % allocations, subscription multiples) ---
-            "subscription_employees": self.num,      # often placeholder
+            "subscription_employees": self.num,  # often placeholder
             "subscription_qib": self.num,
             "subscription_retail_investors": self.num,
             "subscription_non_institutional_buyers": self.num,
@@ -316,7 +305,6 @@ class CleanerFactory:
             "subscription_market_maker": self.num,
             "subscription_retail_individual_investors_riis": self.num,
             "subscription_shareholders": self.num,
-
             # allocations in your sample are in % strings like "100%", "7.14%"
             "allocation_total_ipo_subscription": self.pct,
             "allocation_qib": self.pct,
@@ -358,5 +346,3 @@ class CleanerFactory:
             return self.money
 
         return self.text
-
-

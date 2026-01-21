@@ -37,7 +37,7 @@ class IPOPerformanceExtractor(Extractor):
             "issue_price": None,
             "listing_price": None,
             "listing_gain": None,
-            "current_market_price": None,
+            # "current_market_price": None,
         }
 
         for key, pattern in self.patterns.items():

@@ -4,7 +4,7 @@ from data.chittorgarh.utils.transformer.cleaner import Cleaner
 from data.utils.config import parse_config
 
 
-def clean(config_path:str):
+def clean(config_path: str):
     config = parse_config(config_path)
     cleaner = Cleaner()
     dataset_root = config["dataset_root"]
