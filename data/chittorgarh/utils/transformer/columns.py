@@ -1,124 +1,467 @@
 from enum import Enum
-from typing import List, Tuple
+from typing import Dict, List
 
-
-class Metric(Enum):
-    AMOUNT = "amount"  # absolute monetary value (₹)
-    PRICE = "price"  # per-share price (₹)
-    PERCENTAGE = "percentage"  # %
-    RATIO = "ratio"  # unitless ratio
-    TIMES = "times"  # x times
-    COUNT = "count"  # number of shares / units
-    DATE = "date"  # calendar date
-    TEXT = "text"  # descriptive text
+from chittorgarh.utils.transformer.imputer import ImputerPolicy
+from chittorgarh.utils.transformer.normalizer import NormalizationPolicy
+from chittorgarh.utils.transformer.outlier import OutlierPolicy
+from chittorgarh.utils.transformer.strategy import (DEFAULT_AMOUNT_STRATEGY,
+                                                    DEFAULT_PRICE_STRATEGY,
+                                                    DEFAULT_TEXT_DATE_STRATEGY,
+                                                    ColumnStrategy, Metric)
 
 
 class IPOColumn(Enum):
     # ---------- Financials ----------
-    ASSETS = ("assets", "Total assets of the company", Metric.AMOUNT)
-    NET_WORTH = ("net_worth", "Shareholders’ equity", Metric.AMOUNT)
-    TOTAL_DEBT = ("total_debt", "Total borrowings", Metric.AMOUNT)
-    REVENUE = ("revenue", "Operating revenue", Metric.AMOUNT)
-    EBITDA = ("ebitda", "Operating profit before depreciation and tax", Metric.AMOUNT)
-    PAT = ("pat", "Profit after tax", Metric.AMOUNT)
+    # COLUMN = ("column_name", "Description of the column", Metric.TYPE, ColumnStrategy)
+    ASSETS = (
+        "assets",
+        "Total assets of the company",
+        Metric.AMOUNT,
+        DEFAULT_AMOUNT_STRATEGY,
+    )
+    NET_WORTH = (
+        "net_worth",
+        "Shareholders’ equity",
+        Metric.AMOUNT,
+        DEFAULT_AMOUNT_STRATEGY,
+    )
+    TOTAL_DEBT = (
+        "total_debt",
+        "Total borrowings",
+        Metric.AMOUNT,
+        DEFAULT_AMOUNT_STRATEGY,
+    )
+    REVENUE = ("revenue", "Operating revenue", Metric.AMOUNT, DEFAULT_AMOUNT_STRATEGY)
+    EBITDA = (
+        "ebitda",
+        "Operating profit before depreciation and tax",
+        Metric.AMOUNT,
+        DEFAULT_AMOUNT_STRATEGY,
+    )
+    PAT = ("pat", "Profit after tax", Metric.AMOUNT, DEFAULT_AMOUNT_STRATEGY)
 
-    EBITDA_MARGIN = ("ebitda_margin", "EBITDA as % of revenue", Metric.PERCENTAGE)
-    PAT_MARGIN = ("pat_margin", "PAT as % of revenue", Metric.PERCENTAGE)
+    EBITDA_MARGIN = (
+        "ebitda_margin",
+        "EBITDA as % of revenue",
+        Metric.PERCENTAGE,
+        # margins can be negative; widen bounds
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    PAT_MARGIN = (
+        "pat_margin",
+        "PAT as % of revenue",
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
 
-    EPS = ("eps", "Earnings per share", Metric.PRICE)
-    ROE = ("roe", "Return on equity", Metric.PERCENTAGE)
-    ROCE = ("roce", "Return on capital employed", Metric.PERCENTAGE)
-    ROA = ("roa", "Return on assets", Metric.PERCENTAGE)
+    EPS = ("eps", "Earnings per share", Metric.PRICE, DEFAULT_PRICE_STRATEGY)
 
-    DEBT_TO_EQUITY = ("debt_to_equity", "Debt to equity ratio", Metric.RATIO)
+    ROE = (
+        "roe",
+        "Return on equity",
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    ROCE = (
+        "roce",
+        "Return on capital employed",
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    ROA = (
+        "roa",
+        "Return on assets",
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+
+    DEBT_TO_EQUITY = (
+        "debt_to_equity",
+        "Debt to equity ratio",
+        Metric.RATIO,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
 
     MARKET_CAPITALISATION = (
         "market_capitalisation",
         "Market value of equity",
         Metric.AMOUNT,
+        DEFAULT_AMOUNT_STRATEGY,
     )
-    ENTERPRISE_VALUE = ("enterprise_value", "Firm value including debt", Metric.AMOUNT)
+    ENTERPRISE_VALUE = (
+        "enterprise_value",
+        "Firm value including debt",
+        Metric.AMOUNT,
+        DEFAULT_AMOUNT_STRATEGY,
+    )
 
-    EV_EBITDA = ("ev_ebitda", "Enterprise value to EBITDA multiple", Metric.TIMES)
-    PE_MULTIPLE = ("pe_multiple", "Price to earnings multiple", Metric.TIMES)
-    PB_MULTIPLE = ("pb_multiple", "Price to book multiple", Metric.TIMES)
+    EV_EBITDA = (
+        "ev_ebitda",
+        "Enterprise value to EBITDA multiple",
+        Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    PE_MULTIPLE = (
+        "pe_multiple",
+        "Price to earnings multiple",
+        Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    PB_MULTIPLE = (
+        "pb_multiple",
+        "Price to book multiple",
+        Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
 
-    NAV = ("nav", "Net asset value per share", Metric.PRICE)
+    NAV = ("nav", "Net asset value per share", Metric.PRICE, DEFAULT_PRICE_STRATEGY)
 
     # ---------- Company ----------
-    COMPANY = ("company", "Name of issuing company", Metric.TEXT)
+    COMPANY = (
+        "company",
+        "Name of issuing company",
+        Metric.TEXT,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
 
     # ---------- GMP ----------
-    IPO_OPEN_GMP = ("ipo_open_gmp", "GMP at IPO opening", Metric.PRICE)
-    IPO_CLOSE_GMP = ("ipo_close_gmp", "GMP at IPO close", Metric.PRICE)
-    IPO_ALLOTMENT_GMP = ("ipo_allotment_gmp", "GMP at allotment", Metric.PRICE)
-    IPO_LISTING_GMP = ("ipo_listing_gmp", "GMP on listing day", Metric.PRICE)
+    # GMP can be negative; don't log-normalize; cap tails
+    IPO_OPEN_GMP = (
+        "ipo_open_gmp",
+        "GMP at IPO opening",
+        Metric.PRICE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.NONE,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    IPO_CLOSE_GMP = (
+        "ipo_close_gmp",
+        "GMP at IPO close",
+        Metric.PRICE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.NONE,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    IPO_ALLOTMENT_GMP = (
+        "ipo_allotment_gmp",
+        "GMP at allotment",
+        Metric.PRICE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.NONE,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
+    IPO_LISTING_GMP = (
+        "ipo_listing_gmp",
+        "GMP on listing day",
+        Metric.PRICE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.NONE,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
 
     # ---------- IPO Metadata ----------
-    IPO_CATEGORY = ("ipo_category", "Mainboard or SME", Metric.TEXT)
-    EXCHANGE = ("exchange", "Listing exchange", Metric.TEXT)
-    ISSUE_TYPE = ("issue_type", "Fresh issue / OFS", Metric.TEXT)
+    IPO_CATEGORY = (
+        "ipo_category",
+        "Mainboard or SME",
+        Metric.TEXT,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
+    EXCHANGE = ("exchange", "Listing exchange", Metric.TEXT, DEFAULT_TEXT_DATE_STRATEGY)
+    ISSUE_TYPE = (
+        "issue_type",
+        "Fresh issue / OFS",
+        Metric.TEXT,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
 
-    IPO_SIZE = ("ipo_size", "Total IPO issue size", Metric.AMOUNT)
-    ISSUE_PRICE = ("issue_price", "IPO issue price", Metric.PRICE)
-    FACE_VALUE = ("face_value", "Face value per share", Metric.PRICE)
+    IPO_SIZE = (
+        "ipo_size",
+        "Total IPO issue size",
+        Metric.AMOUNT,
+        DEFAULT_AMOUNT_STRATEGY,
+    )
+    ISSUE_PRICE = (
+        "issue_price",
+        "IPO issue price",
+        Metric.PRICE,
+        DEFAULT_PRICE_STRATEGY,
+    )
+    FACE_VALUE = (
+        "face_value",
+        "Face value per share",
+        Metric.PRICE,
+        DEFAULT_PRICE_STRATEGY,
+    )
 
     # ---------- Promoters ----------
     PRE_ISSUE_PROMOTER_HOLDING = (
         "pre_issue_promoter_holding",
         "Promoter holding before IPO",
         Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
     )
     POST_ISSUE_PROMOTER_HOLDING = (
         "post_issue_promoter_holding",
         "Promoter holding after IPO",
         Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.MEDIAN,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
     )
 
     # ---------- Dates ----------
-    DRHP_DATE = ("dhrp_date", "DRHP filing date", Metric.DATE)
-    OPEN_DATE = ("open_date", "IPO open date", Metric.DATE)
-    CLOSE_DATE = ("close_date", "IPO close date", Metric.DATE)
-    ALLOTMENT_DATE = ("allotment_date", "Allotment date", Metric.DATE)
-    LISTING_DATE = ("listing_date", "Listing date", Metric.DATE)
+    DRHP_DATE = (
+        "dhrp_date",
+        "DRHP filing date",
+        Metric.DATE,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
+    OPEN_DATE = ("open_date", "IPO open date", Metric.DATE, DEFAULT_TEXT_DATE_STRATEGY)
+    CLOSE_DATE = (
+        "close_date",
+        "IPO close date",
+        Metric.DATE,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
+    ALLOTMENT_DATE = (
+        "allotment_date",
+        "Allotment date",
+        Metric.DATE,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
+    LISTING_DATE = (
+        "listing_date",
+        "Listing date",
+        Metric.DATE,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
 
     # ---------- Listing ----------
-    OBJECT_OF_ISSUE = ("object_of_issue", "Use of IPO proceeds", Metric.TEXT)
-    LISTING_PRICE = ("listing_price", "Listing price", Metric.PRICE)
-    LISTING_GAIN = ("listing_gain", "Listing day gain/loss", Metric.PRICE)
-    CURRENT_MARKET_PRICE = ("current_market_price", "Latest market price", Metric.PRICE)
+    OBJECT_OF_ISSUE = (
+        "object_of_issue",
+        "Use of IPO proceeds",
+        Metric.TEXT,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )
+    LISTING_PRICE = (
+        "listing_price",
+        "Listing price",
+        Metric.PRICE,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )  # label; don't touch
+    LISTING_GAIN = (
+        "listing_gain",
+        "Listing day gain/loss",
+        Metric.PRICE,
+        DEFAULT_TEXT_DATE_STRATEGY,
+    )  # label; don't touch
+    CURRENT_MARKET_PRICE = (
+        "current_market_price",
+        "Latest market price",
+        Metric.PRICE,
+        DEFAULT_PRICE_STRATEGY,
+    )
 
     # ---------- Subscription ----------
-    SUBSCRIPTION_TOTAL = ("subscription", "Overall subscription multiple", Metric.TIMES)
+    # Subscription/multiples: sparse; fill 0 but keep missing indicator
+    SUBSCRIPTION_TOTAL = (
+        "subscription",
+        "Overall subscription multiple",
+        Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+            hard_min=0.0,
+            hard_max=None,
+        ),
+    )
     ALLOCATION_TOTAL_IPO_SUBSCRIPTION = (
         "allocation_total_ipo_subscription",
         "Total shares allocated",
-        Metric.COUNT,
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
     )
 
-    SUBSCRIPTION_QIB = ("subscription_qib", "QIB subscription multiple", Metric.TIMES)
-    ALLOCATION_QIB = ("allocation_qib", "Shares allocated to QIBs", Metric.COUNT)
+    SUBSCRIPTION_QIB = (
+        "subscription_qib",
+        "QIB subscription multiple",
+        Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+            hard_min=0.0,
+            hard_max=None,
+        ),
+    )
+    ALLOCATION_QIB = (
+        "allocation_qib",
+        "Shares allocated to QIBs",
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
+    )
 
     SUBSCRIPTION_RETAIL_INVESTORS = (
         "subscription_retail_investors",
         "Retail subscription multiple",
         Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+            hard_min=0.0,
+            hard_max=None,
+        ),
     )
     ALLOCATION_RETAIL_INVESTORS = (
         "allocation_retail_investors",
         "Shares allocated to retail investors",
-        Metric.COUNT,
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
     )
 
     SUBSCRIPTION_EMPLOYEES = (
         "subscription_employees",
         "Employee subscription multiple",
         Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+            hard_min=0.0,
+            hard_max=None,
+        ),
     )
     ALLOCATION_EMPLOYEES = (
         "allocation_employees",
         "Shares allocated to employees",
-        Metric.COUNT,
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
     )
 
     # ---------- NIIs ----------
@@ -126,28 +469,67 @@ class IPOColumn(Enum):
         "subscription_snii_bids_below_10l",
         "Small NII subscription multiple",
         Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+            hard_min=0.0,
+            hard_max=None,
+        ),
     )
     ALLOCATION_SNII_BELOW_10L = (
         "allocation_snii_bids_below_10l",
         "Shares allocated to small NIIs",
-        Metric.COUNT,
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
     )
 
     SUBSCRIPTION_BNII_ABOVE_10L = (
         "subscription_bnii_bids_above_10l",
         "Big NII subscription multiple",
         Metric.TIMES,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            pctl_low=0.01,
+            pctl_high=0.99,
+            hard_min=0.0,
+            hard_max=None,
+        ),
     )
     ALLOCATION_BNII_ABOVE_10L = (
         "allocation_bnii_bids_above_10l",
         "Shares allocated to big NIIs",
-        Metric.COUNT,
+        Metric.PERCENTAGE,
+        ColumnStrategy(
+            imputer=ImputerPolicy.ZERO,
+            outlier=OutlierPolicy.CLIP_THEN_PCTL_CLIP,
+            normalization=NormalizationPolicy.ROBUST_Z,
+            hard_min=0.0,
+            hard_max=100.0,
+            pctl_low=0.01,
+            pctl_high=0.99,
+        ),
     )
 
-    def __init__(self, column: str, description: str, metric: Metric):
+    def __init__(
+        self, column: str, description: str, metric: Metric, strategy: ColumnStrategy
+    ):
         self._column = column
         self._description = description
         self._metric = metric
+        self._strategy = strategy
 
     @property
     def col(self) -> str:
@@ -161,9 +543,32 @@ class IPOColumn(Enum):
     def metric(self) -> Metric:
         return self._metric
 
+    @property
+    def strategy(self) -> ColumnStrategy:
+        return self._strategy
+
+    # ---------- helpers ----------
+
     @staticmethod
-    def get_field_names( metric: Metric) -> List[str]:
-        """
-        Get all field names for a given metric type.
-        """
-        return [col.col for col in IPOColumn if col.metric == metric]
+    def get_field_names(metric: Metric) -> List[str]:
+        return [c.col for c in IPOColumn if c.metric == metric]
+
+    @staticmethod
+    def get_by_imputer(policy: ImputerPolicy) -> List[str]:
+        return [c.col for c in IPOColumn if c.strategy.imputer == policy]
+
+    @staticmethod
+    def get_by_outlier(policy: OutlierPolicy) -> List[str]:
+        return [c.col for c in IPOColumn if c.strategy.outlier == policy]
+
+    @staticmethod
+    def get_by_normalization(policy: NormalizationPolicy) -> List[str]:
+        return [c.col for c in IPOColumn if c.strategy.normalization == policy]
+
+    @staticmethod
+    def strategy_map() -> Dict[str, ColumnStrategy]:
+        return {c.col: c.strategy for c in IPOColumn}
+
+    @staticmethod
+    def list():
+        return [col for col in IPOColumn]
